@@ -307,141 +307,244 @@ function getRegistrar(rdap?: Rdap): string | undefined {
   return fn?.[3];
 }
 
-// ── TOPOLOGY SVG ─────────────────────────────────────────────────
-// Pure-SVG radial layout. Center = domain. Four arcs around it for NS /
-// A+AAAA / MX / CNAME. IPs branch out one more ring, labelled with ASN.
-// No external graph lib — keeps the bundle slim.
+// ── TOPOLOGY ─────────────────────────────────────────────────────
+// Tree layout: nameservers on top, domain in middle, MX (left) + A/AAAA
+// (right) flanking it, CNAME chain below. HTML cards for content,
+// SVG underlay for bezier connectors. No overlap, no truncation drama.
+
+type TopoNode = {
+  id: string;
+  kind: "ns" | "web" | "mx" | "cname";
+  x: number; y: number; w: number; h: number;
+  title: string;       // primary label (hostname / IP)
+  sub?: string;        // secondary line (ASN holder, country, priority…)
+  badge?: string;      // small chip (e.g. AAAA, 10)
+  ip?: string;
+};
 
 function Topology({ r }: { r: Result }) {
-  const W = 1100, H = 720;
-  const cx = W / 2, cy = H / 2;
+  const W = 1200, H = 840;
 
-  // arrange groups around the center
-  const groups: {
-    label: string;
-    color: string;
-    items: { id: string; label: string; sub?: string; ip?: string }[];
-    arc: [number, number]; // [start deg, end deg]
-    ring: number;
-  }[] = [];
+  // domain at exact center
+  const domain = { x: W / 2 - 130, y: H / 2 - 38, w: 260, h: 76 };
+  const domainCx = domain.x + domain.w / 2;
+  const domainCy = domain.y + domain.h / 2;
 
-  if (r.records.NS?.length) groups.push({
-    label: "Nameservers", color: "#22d3ee", arc: [-110, -70], ring: 220,
-    items: r.records.NS.map((a) => ({ id: "ns:" + a.data, label: a.data.replace(/\.$/, "") })),
+  // ── 1) Nameservers — top row, wrap into rows of max 4 ──────────
+  const ns = (r.records.NS ?? []).map((a, i) => ({ id: "ns:" + i, host: a.data.replace(/\.$/, "") }));
+  const NS_W = 230, NS_H = 40, NS_GAP = 16, NS_PER_ROW = Math.min(4, Math.max(1, ns.length));
+  const nsRows = Math.ceil(ns.length / NS_PER_ROW);
+  const nsTotalW = NS_PER_ROW * NS_W + (NS_PER_ROW - 1) * NS_GAP;
+  const nsStartX = (W - nsTotalW) / 2;
+  const nsStartY = 30;
+  const nsNodes: TopoNode[] = ns.map((n, i) => {
+    const row = Math.floor(i / NS_PER_ROW);
+    const col = i % NS_PER_ROW;
+    // last row may be shorter — centre it
+    const rowItems = (row === nsRows - 1) ? (ns.length - row * NS_PER_ROW) : NS_PER_ROW;
+    const rowW = rowItems * NS_W + (rowItems - 1) * NS_GAP;
+    const rowStart = (W - rowW) / 2;
+    return {
+      id: n.id, kind: "ns",
+      x: rowStart + col * (NS_W + NS_GAP),
+      y: nsStartY + row * (NS_H + 10),
+      w: NS_W, h: NS_H,
+      title: n.host,
+    };
   });
-  if (r.records.A?.length || r.records.AAAA?.length) {
-    const items = [
-      ...(r.records.A ?? []).map((a) => ({ id: "a:" + a.data, label: a.data, sub: r.ips[a.data]?.holder, ip: a.data })),
-      ...(r.records.AAAA ?? []).map((a) => ({ id: "aaaa:" + a.data, label: a.data, sub: r.ips[a.data]?.holder, ip: a.data })),
-    ];
-    groups.push({ label: "Web (A / AAAA)", color: "#34d399", arc: [-20, 20], ring: 220, items });
+
+  // ── 2) Web (A + AAAA) — right column ───────────────────────────
+  const a4 = (r.records.A ?? []).map((rec) => ({ ip: rec.data, kind: "A" as const }));
+  const a6 = (r.records.AAAA ?? []).map((rec) => ({ ip: rec.data, kind: "AAAA" as const }));
+  const web = [...a4, ...a6];
+  const WEB_W = 260, WEB_H = 76, WEB_GAP = 14;
+  const webX = W - WEB_W - 30;
+  const webStartY = domainCy - ((web.length * WEB_H + (web.length - 1) * WEB_GAP) / 2);
+  const webNodes: TopoNode[] = web.map((w0, i) => {
+    const info = r.ips[w0.ip];
+    return {
+      id: "web:" + w0.kind + i, kind: "web",
+      x: webX, y: webStartY + i * (WEB_H + WEB_GAP), w: WEB_W, h: WEB_H,
+      title: w0.ip,
+      sub: info?.holder
+        ? `${info.asn ?? ""} · ${info.holder}${info.country ? " · " + info.country : ""}`
+        : "—",
+      badge: w0.kind,
+      ip: w0.ip,
+    };
+  });
+
+  // ── 3) Mail (MX) — left column ─────────────────────────────────
+  const mx = (r.records.MX ?? []).map((rec) => {
+    const parts = rec.data.split(/\s+/);
+    return { prio: parts[0], host: parts.slice(1).join(" ").replace(/\.$/, "") };
+  });
+  const MX_W = 260, MX_H = 76, MX_GAP = 14;
+  const mxStartY = domainCy - ((mx.length * MX_H + (mx.length - 1) * MX_GAP) / 2);
+  const mxNodes: TopoNode[] = mx.map((m, i) => {
+    const ipForHost = (r.mxTargets[m.host] || [])[0];
+    const info = ipForHost ? r.ips[ipForHost] : undefined;
+    return {
+      id: "mx:" + i, kind: "mx",
+      x: 30, y: mxStartY + i * (MX_H + MX_GAP), w: MX_W, h: MX_H,
+      title: m.host,
+      sub: info?.holder
+        ? `${info.asn ?? ""} · ${info.holder}${info.country ? " · " + info.country : ""}`
+        : ipForHost ?? "—",
+      badge: m.prio,
+      ip: ipForHost,
+    };
+  });
+
+  // ── 4) CNAME — bottom row ──────────────────────────────────────
+  const cn = (r.records.CNAME ?? []).map((a) => a.data.replace(/\.$/, ""));
+  const CN_W = 230, CN_H = 40, CN_GAP = 16;
+  const cnTotalW = cn.length * CN_W + (cn.length - 1) * CN_GAP;
+  const cnStartX = (W - cnTotalW) / 2;
+  const cnY = H - CN_H - 30;
+  const cnNodes: TopoNode[] = cn.map((host, i) => ({
+    id: "cn:" + i, kind: "cname",
+    x: cnStartX + i * (CN_W + CN_GAP), y: cnY, w: CN_W, h: CN_H,
+    title: host,
+  }));
+
+  const allNodes = [...nsNodes, ...webNodes, ...mxNodes, ...cnNodes];
+
+  // Connectors: from edge-of-domain → edge-of-card, bezier curve
+  function connectorPath(n: TopoNode): string {
+    const cx = n.x + n.w / 2;
+    const cy = n.y + n.h / 2;
+    // anchor points on each card
+    const ax = n.kind === "ns"    ? cx
+            : n.kind === "cname"  ? cx
+            : n.kind === "mx"     ? n.x + n.w
+            :                       n.x;
+    const ay = n.kind === "ns"    ? n.y + n.h
+            : n.kind === "cname"  ? n.y
+            :                       cy;
+    // anchor points on domain
+    const dx = n.kind === "mx"    ? domain.x
+            : n.kind === "web"    ? domain.x + domain.w
+            :                       domainCx;
+    const dy = n.kind === "ns"    ? domain.y
+            : n.kind === "cname"  ? domain.y + domain.h
+            :                       domainCy;
+    // control points pull the curve nicely
+    const cp1x = n.kind === "ns" || n.kind === "cname" ? dx : (dx + ax) / 2;
+    const cp1y = n.kind === "ns" || n.kind === "cname" ? (dy + ay) / 2 : dy;
+    const cp2x = n.kind === "ns" || n.kind === "cname" ? ax : (dx + ax) / 2;
+    const cp2y = n.kind === "ns" || n.kind === "cname" ? (dy + ay) / 2 : ay;
+    return `M ${dx} ${dy} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${ax} ${ay}`;
   }
-  if (r.records.MX?.length) groups.push({
-    label: "Mail (MX)", color: "#a78bfa", arc: [70, 110], ring: 220,
-    items: r.records.MX.map((a) => {
-      const parts = a.data.split(/\s+/);
-      const host = parts.slice(1).join(" ").replace(/\.$/, "");
-      const ips = r.mxTargets[host] || [];
-      return { id: "mx:" + host, label: host, sub: ips[0] ? r.ips[ips[0]]?.holder : undefined, ip: ips[0] };
-    }),
-  });
-  if (r.records.CNAME?.length) groups.push({
-    label: "CNAME", color: "#fbbf24", arc: [160, 200], ring: 220,
-    items: r.records.CNAME.map((a) => ({ id: "cn:" + a.data, label: a.data.replace(/\.$/, "") })),
-  });
 
-  // position items
-  const positioned: { id: string; x: number; y: number; label: string; sub?: string; color: string; ip?: string; groupLabel: string }[] = [];
-  groups.forEach((g) => {
-    const n = g.items.length;
-    g.items.forEach((it, i) => {
-      const t = n === 1 ? 0.5 : i / (n - 1);
-      const angleDeg = g.arc[0] + (g.arc[1] - g.arc[0]) * t;
-      const a = (angleDeg * Math.PI) / 180;
-      positioned.push({ ...it, x: cx + Math.cos(a) * g.ring, y: cy + Math.sin(a) * g.ring, color: g.color, groupLabel: g.label });
-    });
-  });
+  const COLORS: Record<TopoNode["kind"], string> = {
+    ns: "#22d3ee", web: "#34d399", mx: "#a78bfa", cname: "#fbbf24",
+  };
+  const LABELS: Record<TopoNode["kind"], string> = {
+    ns: "Nameservers", web: "Web (A / AAAA)", mx: "Mail (MX)", cname: "CNAME",
+  };
+
+  const groupsPresent = (Object.keys(LABELS) as TopoNode["kind"][])
+    .filter((k) => allNodes.some((n) => n.kind === k));
 
   return (
     <div className="card p-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
         <div className="text-sm text-dim">
-          Domain → nameservers, web hosts, mail servers, CNAME chain.
-          Hover any node for detail.
+          Domain in the centre. Edges connect to live hosts; right-side cards
+          carry the ASN that owns the IP.
         </div>
         <div className="flex gap-3 text-xs">
-          {groups.map((g) => (
-            <span key={g.label} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: g.color }} />
-              <span className="text-dim">{g.label}</span>
+          {groupsPresent.map((k) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[k] }} />
+              <span className="text-dim">{LABELS[k]}</span>
             </span>
           ))}
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 800 }}>
-          {/* group arc labels */}
-          {groups.map((g) => {
-            const mid = (g.arc[0] + g.arc[1]) / 2;
-            const a = (mid * Math.PI) / 180;
-            const x = cx + Math.cos(a) * (g.ring + 60);
-            const y = cy + Math.sin(a) * (g.ring + 60);
-            return (
-              <text key={g.label} x={x} y={y} textAnchor="middle" fill={g.color}
-                fontSize="11" fontFamily="JetBrains Mono, monospace"
-                style={{ textTransform: "uppercase", letterSpacing: 2 }}>
-                {g.label.toUpperCase()}
-              </text>
-            );
-          })}
+        <div className="relative" style={{ width: W, height: H, minWidth: 900 }}>
+          {/* SVG connectors below the cards */}
+          <svg className="absolute inset-0 pointer-events-none" viewBox={`0 0 ${W} ${H}`}
+               width={W} height={H}>
+            {allNodes.map((n) => (
+              <path key={"p:" + n.id} d={connectorPath(n)}
+                fill="none" stroke={COLORS[n.kind]} strokeOpacity="0.45" strokeWidth="1.5" />
+            ))}
+          </svg>
 
-          {/* edges from center to each node */}
-          {positioned.map((p) => (
-            <line key={"edge-" + p.id} x1={cx} y1={cy} x2={p.x} y2={p.y}
-              stroke={p.color} strokeOpacity="0.35" strokeWidth="1.5" />
-          ))}
+          {/* group labels (small uppercase text) */}
+          {nsNodes.length > 0 && (
+            <SectionLabel x={W / 2} y={10}    color={COLORS.ns}    text="NAMESERVERS" />
+          )}
+          {webNodes.length > 0 && (
+            <SectionLabel x={webX + WEB_W / 2}  y={webStartY - 20} color={COLORS.web}   text="WEB (A / AAAA)" />
+          )}
+          {mxNodes.length > 0 && (
+            <SectionLabel x={30 + MX_W / 2}   y={mxStartY - 20}  color={COLORS.mx}    text="MAIL (MX)" />
+          )}
+          {cnNodes.length > 0 && (
+            <SectionLabel x={W / 2} y={cnY - 20} color={COLORS.cname} text="CNAME" />
+          )}
 
-          {/* center: domain */}
-          <g>
-            <circle cx={cx} cy={cy} r="58" fill="#13161b" stroke="#f97316" strokeWidth="2.5" />
-            <text x={cx} y={cy - 4} textAnchor="middle" fill="#8b9099" fontSize="10"
-              fontFamily="JetBrains Mono, monospace"
-              style={{ textTransform: "uppercase", letterSpacing: 2 }}>
-              DOMAIN
-            </text>
-            <text x={cx} y={cy + 14} textAnchor="middle" fill="#f97316"
-              fontSize="14" fontWeight="800" fontFamily="JetBrains Mono, monospace">
-              {truncate(r.domain, 16)}
-            </text>
-          </g>
+          {/* domain card */}
+          <div className="absolute rounded-xl border-2 border-brand bg-surface flex flex-col items-center justify-center"
+            style={{ left: domain.x, top: domain.y, width: domain.w, height: domain.h }}>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-dim font-mono">DOMAIN</div>
+            <div className="text-brand text-lg font-extrabold font-mono mt-1 truncate px-3">{r.domain}</div>
+          </div>
 
-          {/* nodes */}
-          {positioned.map((p) => (
-            <g key={p.id}>
-              <title>{p.groupLabel}: {p.label}{p.sub ? ` — ${p.sub}` : ""}{p.ip ? ` (${p.ip})` : ""}</title>
-              <circle cx={p.x} cy={p.y} r="9" fill={p.color} fillOpacity="0.2" stroke={p.color} strokeWidth="1.5" />
-              <text x={p.x} y={p.y - 16} textAnchor="middle"
-                fill="#e8eaef" fontSize="11" fontWeight="600" fontFamily="JetBrains Mono, monospace">
-                {truncate(p.label, 28)}
-              </text>
-              {p.sub && (
-                <text x={p.x} y={p.y + 22} textAnchor="middle" fill="#8b9099"
-                  fontSize="10" fontFamily="Inter, sans-serif">
-                  {truncate(p.sub, 30)}
-                </text>
-              )}
-            </g>
-          ))}
-        </svg>
+          {/* all other nodes */}
+          {allNodes.map((n) => <NodeCard key={n.id} n={n} color={COLORS[n.kind]} />)}
+        </div>
       </div>
+
+      {allNodes.length === 0 && (
+        <div className="text-sm text-dim text-center py-8">
+          No records to graph for <code className="text-brand">{r.domain}</code>.
+        </div>
+      )}
     </div>
   );
 }
 
-function truncate(s: string, n: number) {
-  if (n <= 0) return "";
-  return s.length <= n ? s : s.slice(0, n - 1) + "…";
+function SectionLabel({ x, y, color, text }: { x: number; y: number; color: string; text: string }) {
+  return (
+    <div className="absolute font-mono uppercase text-[10px] tracking-[0.22em] -translate-x-1/2"
+      style={{ left: x, top: y, color }}>
+      {text}
+    </div>
+  );
+}
+
+function NodeCard({ n, color }: { n: TopoNode; color: string }) {
+  const isPill = n.kind === "ns" || n.kind === "cname";
+  return (
+    <div className="absolute rounded-lg border bg-surface group transition hover:!border-text hover:z-10"
+      style={{
+        left: n.x, top: n.y, width: n.w, height: n.h,
+        borderColor: color + "66",
+      }}
+      title={n.ip ? `${n.title} → ${n.ip}` : n.title}>
+      <div className={`px-3 ${isPill ? "py-2.5 h-full flex items-center" : "py-2.5"}`}>
+        {n.badge && (
+          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded mr-2 align-middle"
+            style={{ background: color + "22", color }}>
+            {n.badge}
+          </span>
+        )}
+        <span className={`font-mono ${isPill ? "text-xs" : "text-sm font-semibold"} text-text break-all`}
+          style={{ wordBreak: "break-all" }}>
+          {n.title}
+        </span>
+      </div>
+      {n.sub && !isPill && (
+        <div className="px-3 pb-2 text-xs text-dim font-mono truncate">{n.sub}</div>
+      )}
+    </div>
+  );
 }
 
 // ── RECORDS VIEW ─────────────────────────────────────────────────
