@@ -1,21 +1,66 @@
 @tailwind base; @tailwind components; @tailwind utilities;
 @layer base {
   html { color-scheme: dark; }
-  body { @apply bg-ink text-text antialiased font-sans;
-    background-image: radial-gradient(circle at 15% -5%, rgba(249,115,22,.13), transparent 55%); }
+  body {
+    @apply bg-ink text-text antialiased font-sans;
+    background-color: #0a0b0d;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(249,115,22,0.14), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(34,211,238,0.06), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 10% 80%, rgba(167,139,250,0.06), transparent 50%);
+    background-attachment: fixed;
+  }
   ::selection { background: theme('colors.brand.DEFAULT'); color: white; }
-  code, pre { @apply font-mono; }
+  code, pre, kbd { @apply font-mono; }
+  /* subtle noise so flat surfaces don't read as dead-flat */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.7 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+  }
+  main { position: relative; z-index: 1; }
 }
 @layer components {
-  .card { @apply rounded-2xl bg-surface border border-border/70; }
-  .input { @apply w-full rounded-lg bg-muted border border-border/70 px-3 py-2 text-sm
-    text-text placeholder:text-dim focus:outline-none focus:border-brand
-    focus:ring-2 focus:ring-brand/30 transition; }
+  .card {
+    @apply rounded-2xl border border-border/70 backdrop-blur-sm;
+    background: linear-gradient(180deg, rgba(28,32,38,0.85), rgba(19,22,27,0.85));
+  }
+  .card-flat { @apply rounded-2xl bg-surface border border-border/70; }
+  .input {
+    @apply w-full rounded-lg bg-muted/60 border border-border/70 px-3 py-2 text-sm
+      text-text placeholder:text-dim focus:outline-none focus:border-brand
+      focus:ring-2 focus:ring-brand/25 transition;
+  }
   .input-mono { @apply font-mono; }
-  .chip { @apply px-2.5 py-1 rounded-md text-xs font-medium bg-muted border border-border cursor-pointer hover:bg-border transition; }
-  .chip-on { @apply !bg-brand !text-white !border-brand; }
-  .btn-brand { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
-    text-sm font-semibold bg-brand text-white hover:bg-brand-soft transition active:scale-[0.98]; }
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold
+      bg-muted/70 border border-border text-dim cursor-pointer hover:text-text hover:border-border transition;
+  }
+  .chip-on { @apply !bg-brand/15 !text-brand !border-brand/50; }
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+      text-sm font-bold bg-brand text-ink hover:bg-brand-soft transition active:scale-[0.98]
+      shadow-[0_8px_24px_-8px_rgba(249,115,22,.6)];
+  }
+  .kbd {
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold
+      bg-muted border border-border text-dim;
+  }
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #2a2e36; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3f48; }
+
+/* tiny pulsing dot for loading state */
+@keyframes pulse-brand {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.6); }
+  50%      { box-shadow: 0 0 0 8px rgba(249,115,22,0); }
+}
+.pulse-dot { animation: pulse-brand 1.6s infinite; }
+
+/* dashed-flow animation for topology connectors */
+@keyframes flow {
+  to { stroke-dashoffset: -20; }
+}
+.connector-flow { stroke-dasharray: 4 4; animation: flow 1.4s linear infinite; }
