@@ -82,20 +82,23 @@ export default function HomePage() {
     setLoading("Resolving DNS records…");
 
     // 1) Parallel DoH for all record types + DNSSEC.
+    // do=true asks for DNSSEC; the response then also includes RRSIG (type 46)
+    // records covering the answer. We keep the AD flag (chain valid?) but
+    // drop the signatures themselves from the per-type buckets.
     const dohJobs = RECORD_TYPES.map(async (rt) => {
       const r = await fetch(`${DOH}?name=${encodeURIComponent(d)}&type=${rt.num}&do=true`, {
         headers: { Accept: "application/dns-json" },
       });
       const j: DohResult = await r.json();
-      return { id: rt.id, j };
+      return { id: rt.id, num: rt.num, j };
     });
     const dohRes = await Promise.all(dohJobs);
 
     const records: Partial<Record<RecordType, Answer[]>> = {};
     const status: Partial<Record<RecordType, number>> = {};
     let dnssec = false;
-    for (const { id, j } of dohRes) {
-      records[id] = j.Answer ?? [];
+    for (const { id, num, j } of dohRes) {
+      records[id] = (j.Answer ?? []).filter((a) => a.type === num);
       status[id] = j.Status;
       if (j.AD) dnssec = true;
     }
@@ -105,7 +108,7 @@ export default function HomePage() {
     try {
       const r = await fetch(`${DOH}?name=${encodeURIComponent("_dmarc." + d)}&type=16`, { headers: { Accept: "application/dns-json" } });
       const j: DohResult = await r.json();
-      const dmarcRec = (j.Answer ?? []).find((a) => unq(a.data).startsWith("v=DMARC1"));
+      const dmarcRec = (j.Answer ?? []).filter((a) => a.type === 16).find((a) => unq(a.data).startsWith("v=DMARC1"));
       if (dmarcRec) (records.TXT ||= []).push({ ...dmarcRec, data: dmarcRec.data });
     } catch {}
 
@@ -117,7 +120,7 @@ export default function HomePage() {
       try {
         const r = await fetch(`${DOH}?name=${encodeURIComponent(host)}&type=1`, { headers: { Accept: "application/dns-json" } });
         const j: DohResult = await r.json();
-        mxTargets[host] = (j.Answer ?? []).map((a) => a.data);
+        mxTargets[host] = (j.Answer ?? []).filter((a) => a.type === 1).map((a) => a.data);
       } catch {}
     }
 
