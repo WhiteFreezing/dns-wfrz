@@ -195,79 +195,77 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* ── HERO ──────────────────────────────────────────────── */}
-      <header className="max-w-5xl mx-auto px-5 pt-16 pb-8 text-center">
-        <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-dim mb-4">
-          <span className="w-8 h-px bg-gradient-to-r from-transparent to-brand" />
-          <span>dns.wfrz.eu · open source recon</span>
-          <span className="w-8 h-px bg-gradient-to-l from-transparent to-brand" />
+      {/* ── TOPBAR ────────────────────────────────────────────── */}
+      <nav className="border-b border-border/60 sticky top-0 z-20 bg-ink/85 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-5 h-12 flex items-center gap-5">
+          <a href="/" className="font-mono font-bold text-sm tracking-tight">
+            <span className="text-brand">dns</span>
+            <span className="text-dim">.wfrz.eu</span>
+          </a>
+          <span className="text-xs text-dim hidden md:inline">DNS &amp; infra inspector</span>
+          <div className="ml-auto flex items-center gap-4 text-xs text-dim">
+            <a href="https://wfrz.eu" className="hover:text-text">wfrz.eu</a>
+            <a href="https://github.com/WhiteFreezing/dns-wfrz" target="_blank" rel="noopener" className="hover:text-text">github</a>
+          </div>
         </div>
-        <h1 className="text-5xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
-          See <span className="text-brand">everything</span>
-          <br />a domain leaks.
-        </h1>
-        <p className="text-dim mt-5 max-w-xl mx-auto">
-          DNS records, topology graph, ASN+geo per IP, RDAP whois,
-          subdomains from CT logs, email security, DNSSEC. One probe.
-        </p>
+      </nav>
 
-        {/* search */}
-        <div className="mt-8 max-w-xl mx-auto">
-          <div className="relative">
-            <div className="absolute inset-0 bg-brand/20 blur-2xl rounded-2xl" />
-            <div className="relative flex gap-2 p-2 rounded-2xl bg-surface border border-border/70 shadow-2xl">
-              <div className="flex items-center px-3 text-dim font-mono text-sm select-none">https://</div>
-              <input
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && probe()}
-                className="bg-transparent flex-1 outline-none font-mono text-lg placeholder:text-dim/60 py-2.5"
-                placeholder="example.com"
-                spellCheck={false}
-                autoFocus
-              />
-              <button onClick={probe} disabled={!!loading} className="btn-brand !px-6 !py-2.5">
-                {loading ? "…" : (<><span>Probe</span><span className="kbd ml-1">⏎</span></>)}
-              </button>
-            </div>
+      <section className="max-w-7xl mx-auto px-5 pt-10 pb-24">
+
+        {/* ── SEARCH ──────────────────────────────────────────── */}
+        <div className="max-w-2xl">
+          <div className="text-xs uppercase tracking-[0.16em] text-dim mb-2">probe a domain</div>
+          <div className="surface flex items-center px-3.5 focus-within:border-brand transition">
+            <span className="text-dim font-mono text-sm select-none mr-2">$</span>
+            <input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && probe()}
+              className="bg-transparent flex-1 outline-none font-mono text-base placeholder:text-dim/60 py-3"
+              placeholder="example.com"
+              spellCheck={false}
+              autoFocus
+            />
+            <button onClick={probe} disabled={!!loading} className="btn">
+              {loading ? "…" : "Probe"}
+            </button>
           </div>
 
-          {/* example chips */}
-          {!result && (
-            <div className="flex justify-center items-center gap-2 mt-4 text-xs text-dim flex-wrap">
-              <span>or try:</span>
+          {!result && !loading && (
+            <div className="flex items-center gap-2 mt-3 text-xs text-dim flex-wrap">
+              <span>examples:</span>
               {["github.com", "cloudflare.com", "anthropic.com", "wfrz.eu"].map((d) => (
                 <button key={d} onClick={() => { setDomain(d); setTimeout(probe, 0); }}
-                  className="chip hover:!border-brand/50 hover:!text-brand font-mono">{d}</button>
+                  className="font-mono text-dim hover:text-brand transition underline-offset-4 hover:underline decoration-dotted">{d}</button>
               ))}
             </div>
           )}
         </div>
-      </header>
-
-      <section className="max-w-7xl mx-auto px-5 pb-24 space-y-6">
 
         {loading && (
-          <div className="card p-5 flex items-center gap-3">
-            <span className="w-2.5 h-2.5 bg-brand rounded-full pulse-dot" />
-            <div className="font-mono text-sm text-dim">{loading}</div>
+          <div className="mt-6 font-mono text-sm text-dim flex items-center gap-3">
+            <span className="w-1.5 h-1.5 bg-brand rounded-full" />
+            <span>{loading}</span>
           </div>
         )}
 
         {result && (
-          <>
+          <div className="mt-10 space-y-8">
             <SummaryBar r={result} />
 
-            {/* tabs */}
-            <div className="flex gap-1 p-1.5 rounded-xl bg-surface/60 border border-border/70 backdrop-blur-sm w-fit max-w-full overflow-x-auto">
-              <SectionTab on={section === "topology"} onClick={() => setSection("topology")} icon="🗺">Topology</SectionTab>
-              <SectionTab on={section === "records"}  onClick={() => setSection("records")} icon="📋">Records</SectionTab>
-              <SectionTab on={section === "ips"}      onClick={() => setSection("ips")} icon="🌐">IPs &amp; ASN</SectionTab>
-              <SectionTab on={section === "subs"}     onClick={() => setSection("subs")} icon="🔎">
-                Subdomains
-                {result.subdomains.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded bg-brand/15 text-brand font-mono">{result.subdomains.length}</span>}
-              </SectionTab>
-              <SectionTab on={section === "whois"}    onClick={() => setSection("whois")} icon="🛡">WHOIS &amp; Email</SectionTab>
+            {/* tabs — underline style */}
+            <div className="border-b border-border/60 -mb-px overflow-x-auto">
+              <div className="flex gap-1 min-w-fit">
+                <SectionTab on={section === "topology"} onClick={() => setSection("topology")}>topology</SectionTab>
+                <SectionTab on={section === "records"}  onClick={() => setSection("records")}>records</SectionTab>
+                <SectionTab on={section === "ips"}      onClick={() => setSection("ips")}>
+                  ips <span className="ml-1 text-dim">({Object.keys(result.ips).length})</span>
+                </SectionTab>
+                <SectionTab on={section === "subs"}     onClick={() => setSection("subs")}>
+                  subdomains <span className="ml-1 text-dim">({result.subdomains.length})</span>
+                </SectionTab>
+                <SectionTab on={section === "whois"}    onClick={() => setSection("whois")}>whois</SectionTab>
+              </div>
             </div>
 
             {section === "topology" && <Topology r={result} />}
@@ -275,42 +273,33 @@ export default function HomePage() {
             {section === "ips"      && <IpsView r={result} />}
             {section === "subs"     && <SubsView r={result} />}
             {section === "whois"    && <WhoisView r={result} />}
-          </>
+          </div>
         )}
       </section>
 
-      <footer className="border-t border-border/70 py-8 text-sm text-dim relative">
-        <div className="max-w-7xl mx-auto px-5 flex items-center justify-between flex-wrap gap-4">
-          <div className="font-mono text-xs">cloudflare-doh · ripestat · crt.sh · rdap — no auth, no tracking</div>
-          <a href="https://github.com/WhiteFreezing/dns-wfrz" target="_blank" rel="noopener" className="hover:text-text inline-flex items-center gap-1.5">
-            github
-            <span>→</span>
-          </a>
+      <footer className="border-t border-border/60 py-6 text-xs text-dim">
+        <div className="max-w-7xl mx-auto px-5 flex items-center justify-between flex-wrap gap-3 font-mono">
+          <div>data: cloudflare-doh · ripestat · crt.sh · rdap</div>
+          <div>browser-side, no backend</div>
         </div>
       </footer>
     </main>
   );
 }
 
-// ── country flag emoji from ISO-3166 alpha-2 ─────────────────────
-function flag(country?: string): string {
-  if (!country || country.length !== 2) return "";
-  return String.fromCodePoint(
-    ...[...country.toUpperCase()].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)
-  );
+// ISO-3166 alpha-2 → keep as small mono text instead of emoji flag.
+function cc(country?: string): string {
+  return (country && country.length === 2) ? country.toUpperCase() : "";
 }
 
 function unq(s: string) { return s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1).replace(/"\s+"/g, "") : s; }
 
-function SectionTab({ on, onClick, children, icon }: { on: boolean; onClick: () => void; children: React.ReactNode; icon?: string }) {
+function SectionTab({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition ${
-        on
-          ? "bg-brand text-ink shadow-[0_4px_16px_-4px_rgba(249,115,22,.5)]"
-          : "text-dim hover:text-text hover:bg-muted/60"
+      className={`px-3.5 py-2.5 text-sm font-mono whitespace-nowrap border-b-2 transition -mb-px ${
+        on ? "border-brand text-text" : "border-transparent text-dim hover:text-text"
       }`}>
-      {icon && <span className="text-base leading-none">{icon}</span>}
       {children}
     </button>
   );
@@ -324,49 +313,43 @@ function SummaryBar({ r }: { r: Result }) {
   const ipCount = Object.keys(r.ips).length;
   const nsCount = r.records.NS?.length ?? 0;
   const mxCount = r.records.MX?.length ?? 0;
-  const countries = new Set(Object.values(r.ips).map((i) => i.country).filter(Boolean));
+  const countries = [...new Set(Object.values(r.ips).map((i) => i.country).filter(Boolean) as string[])];
+  const registrar = getRegistrar(r.rdap);
 
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between flex-wrap gap-4 mb-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-dim mb-1">probed</div>
-          <div className="font-mono text-2xl md:text-3xl font-extrabold text-brand">{r.domain}</div>
-          {getRegistrar(r.rdap) && (
-            <div className="text-sm text-dim mt-1">
-              via <span className="text-text">{getRegistrar(r.rdap)}</span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono font-semibold ${r.dnssec ? "bg-brand/15 text-brand border border-brand/30" : "bg-amber-500/10 text-amber-300 border border-amber-500/30"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${r.dnssec ? "bg-brand" : "bg-amber-300"}`} />
-            DNSSEC {r.dnssec ? "signed" : "off"}
-          </span>
-        </div>
+    <div>
+      <div className="flex items-baseline gap-4 flex-wrap">
+        <h1 className="font-mono font-bold text-3xl md:text-4xl tracking-tight">
+          {r.domain}
+        </h1>
+        <span className={`text-xs font-mono uppercase tracking-wider ${r.dnssec ? "text-brand" : "text-amber-300/80"}`}>
+          DNSSEC {r.dnssec ? "signed" : "off"}
+        </span>
       </div>
+      {registrar && (
+        <div className="text-sm text-dim mt-1">
+          registered with <span className="text-text">{registrar}</span>
+          {ageYears !== null && <> · <span className="num">{ageYears.toFixed(1)}</span> years ago</>}
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat icon="🕒" label="Age"         value={ageYears ? `${ageYears.toFixed(1)}` : "—"}    unit={ageYears ? "years" : ""} />
-        <Stat icon="🌍" label="Nameservers" value={String(nsCount)}                              unit={nsCount === 1 ? "server" : "servers"} accent={nsCount >= 2 ? "ok" : "warn"} />
-        <Stat icon="🖥"  label="IPs"         value={String(ipCount)}                              unit={ipCount === 1 ? "host" : "hosts"} />
-        <Stat icon="📧" label="Mail (MX)"   value={String(mxCount)}                              unit={mxCount === 1 ? "record" : "records"} accent={mxCount > 0 ? undefined : "warn"} />
-        <Stat icon="🌐" label="Countries"   value={String(countries.size)}                       unit={[...countries].join(" ")} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/50 border border-border/50 rounded-lg overflow-hidden mt-5">
+        <Stat label="nameservers" value={nsCount} warn={nsCount < 2} />
+        <Stat label="ip hosts"    value={ipCount} />
+        <Stat label="mx records"  value={mxCount} warn={mxCount === 0} />
+        <Stat label="countries"   value={countries.length} hint={countries.join(" ")} />
       </div>
     </div>
   );
 }
 
-function Stat({ icon, label, value, unit, accent }: { icon: string; label: string; value: string; unit?: string; accent?: "ok" | "warn" }) {
+function Stat({ label, value, warn, hint }: { label: string; value: number; warn?: boolean; hint?: string }) {
   return (
-    <div className="relative rounded-xl bg-muted/40 border border-border/60 px-4 py-3 hover:border-border transition">
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-sm grayscale opacity-70">{icon}</span>
-        <span className="text-[10px] uppercase tracking-wider text-dim font-semibold">{label}</span>
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-extrabold tabular-nums ${accent === "ok" ? "text-brand" : accent === "warn" ? "text-amber-300" : "text-text"}`}>{value}</span>
-        {unit && <span className="text-xs text-dim truncate font-mono">{unit}</span>}
+    <div className="bg-surface px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider text-dim font-mono">{label}</div>
+      <div className="flex items-baseline gap-2 mt-1">
+        <span className={`num text-2xl font-bold ${warn ? "text-amber-300" : "text-text"}`}>{value}</span>
+        {hint && <span className="text-xs text-dim font-mono truncate">{hint}</span>}
       </div>
     </div>
   );
@@ -519,82 +502,49 @@ function Topology({ r }: { r: Result }) {
     .filter((k) => allNodes.some((n) => n.kind === k));
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-dim mb-1">network topology</div>
-          <div className="text-sm text-dim">
-            Live infrastructure map. Hover any card for full hostname / IP.
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap text-xs">
+    <div>
+      <div className="flex items-baseline justify-between mb-3 flex-wrap gap-3">
+        <div className="text-xs uppercase tracking-[0.16em] text-dim">topology</div>
+        <div className="flex gap-3 text-[11px] font-mono">
           {groupsPresent.map((k) => (
-            <span key={k}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold border"
-              style={{ borderColor: COLORS[k] + "55", background: COLORS[k] + "0d", color: COLORS[k] }}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLORS[k] }} />
-              {LABELS[k]}
+            <span key={k} className="flex items-center gap-1.5 text-dim">
+              <span className="w-2 h-2 rounded-full" style={{ background: COLORS[k] }} />
+              {LABELS[k].toLowerCase()}
             </span>
           ))}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl bg-gradient-to-br from-[#0b0d11] to-[#13161b] border border-border/60 relative">
-        {/* subtle grid pattern */}
-        <div className="absolute inset-0 opacity-[0.08] pointer-events-none"
-          style={{ backgroundImage: "radial-gradient(#e8eaef 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-
+      <div className="surface overflow-x-auto">
         <div className="relative" style={{ width: W, height: H, minWidth: 900 }}>
-          {/* SVG connectors below the cards */}
           <svg className="absolute inset-0 pointer-events-none" viewBox={`0 0 ${W} ${H}`}
                width={W} height={H}>
-            <defs>
-              {(Object.keys(COLORS) as TopoNode["kind"][]).map((k) => (
-                <linearGradient key={k} id={`grad-${k}`} gradientUnits="userSpaceOnUse"
-                  x1={domainCx} y1={domainCy} x2={W} y2={H}>
-                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor={COLORS[k]} stopOpacity="0.7" />
-                </linearGradient>
-              ))}
-            </defs>
             {allNodes.map((n) => (
-              <g key={"p:" + n.id}>
-                <path d={connectorPath(n)} fill="none"
-                  stroke={`url(#grad-${n.kind})`} strokeWidth="2"
-                  className="connector-flow" strokeLinecap="round" />
-              </g>
+              <path key={"p:" + n.id} d={connectorPath(n)} fill="none"
+                stroke={COLORS[n.kind]} strokeOpacity="0.5" strokeWidth="1" />
             ))}
           </svg>
 
-          {/* group labels */}
           {nsNodes.length > 0 && (
-            <SectionLabel x={W / 2} y={6}    color={COLORS.ns}    text="NAMESERVERS" count={nsNodes.length} />
+            <SectionLabel x={W / 2}              y={6}                color={COLORS.ns}    text="nameservers" count={nsNodes.length} />
           )}
           {webNodes.length > 0 && (
-            <SectionLabel x={webX + WEB_W / 2}  y={webStartY - 24} color={COLORS.web}   text="WEB" count={webNodes.length} />
+            <SectionLabel x={webX + WEB_W / 2}   y={webStartY - 22}   color={COLORS.web}   text="web"         count={webNodes.length} />
           )}
           {mxNodes.length > 0 && (
-            <SectionLabel x={30 + MX_W / 2}   y={mxStartY - 24}  color={COLORS.mx}    text="MAIL" count={mxNodes.length} />
+            <SectionLabel x={30 + MX_W / 2}      y={mxStartY - 22}    color={COLORS.mx}    text="mail"        count={mxNodes.length} />
           )}
           {cnNodes.length > 0 && (
-            <SectionLabel x={W / 2} y={cnY - 24} color={COLORS.cname} text="CNAME" count={cnNodes.length} />
+            <SectionLabel x={W / 2}              y={cnY - 22}         color={COLORS.cname} text="cname"       count={cnNodes.length} />
           )}
 
-          {/* domain card — center hero */}
-          <div className="absolute"
+          {/* domain — clean rectangle, no glow */}
+          <div className="absolute rounded-md border border-brand/70 bg-ink flex flex-col items-center justify-center"
             style={{ left: domain.x, top: domain.y, width: domain.w, height: domain.h }}>
-            <div className="absolute -inset-3 bg-brand/30 blur-2xl rounded-2xl" />
-            <div className="relative h-full rounded-xl border border-brand/70 flex flex-col items-center justify-center"
-              style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.18), rgba(19,22,27,0.95))" }}>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-brand/80 font-mono font-semibold">DOMAIN</div>
-              <div className="text-brand text-xl font-extrabold font-mono mt-1.5 truncate px-3 max-w-full">{r.domain}</div>
-              <div className="text-[10px] text-dim mt-1 font-mono">
-                {allNodes.length} edge{allNodes.length === 1 ? "" : "s"}
-              </div>
-            </div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-dim font-mono">domain</div>
+            <div className="text-text text-lg font-extrabold font-mono mt-1 truncate px-3 max-w-full">{r.domain}</div>
           </div>
 
-          {/* all other nodes */}
           {allNodes.map((n) => (
             <NodeCard
               key={n.id} n={n} color={COLORS[n.kind]}
@@ -605,9 +555,7 @@ function Topology({ r }: { r: Result }) {
       </div>
 
       {allNodes.length === 0 && (
-        <div className="text-sm text-dim text-center py-8">
-          No records to graph for <code className="text-brand">{r.domain}</code>.
-        </div>
+        <div className="text-sm text-dim text-center py-8">no records to graph for <code className="text-brand">{r.domain}</code></div>
       )}
     </div>
   );
@@ -615,10 +563,9 @@ function Topology({ r }: { r: Result }) {
 
 function SectionLabel({ x, y, color, text, count }: { x: number; y: number; color: string; text: string; count: number }) {
   return (
-    <div className="absolute -translate-x-1/2 flex items-center gap-2" style={{ left: x, top: y }}>
-      <span className="font-mono uppercase text-[10px] tracking-[0.25em] font-semibold" style={{ color }}>{text}</span>
-      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
-        style={{ background: color + "1a", color }}>{count}</span>
+    <div className="absolute -translate-x-1/2 flex items-center gap-2 font-mono text-[10px]" style={{ left: x, top: y }}>
+      <span className="uppercase tracking-[0.18em] text-dim">{text}</span>
+      <span style={{ color }}>{count}</span>
     </div>
   );
 }
@@ -626,32 +573,23 @@ function SectionLabel({ x, y, color, text, count }: { x: number; y: number; colo
 function NodeCard({ n, color, countryCode }: { n: TopoNode; color: string; countryCode?: string }) {
   const isPill = n.kind === "ns" || n.kind === "cname";
   return (
-    <div className="absolute rounded-lg border bg-surface group transition hover:scale-[1.03] hover:!border-text hover:shadow-2xl hover:z-10"
-      style={{
-        left: n.x, top: n.y, width: n.w, height: n.h,
-        borderColor: color + "55",
-        background: `linear-gradient(135deg, ${color}0a, rgba(19,22,27,0.95))`,
-      }}
+    <div className="absolute rounded-md border border-border/60 bg-surface transition hover:border-text hover:z-10"
+      style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
       title={n.ip ? `${n.title} → ${n.ip}` : n.title}>
       {isPill ? (
-        <div className="px-3 py-2.5 h-full flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+        <div className="px-3 h-full flex items-center gap-2">
+          <span className="w-1 h-1 rounded-full shrink-0" style={{ background: color }} />
           <span className="font-mono text-xs text-text truncate">{n.title}</span>
         </div>
       ) : (
-        <div className="p-2.5 h-full flex flex-col justify-between">
-          <div className="flex items-start gap-2">
+        <div className="px-3 py-2 h-full flex flex-col justify-between">
+          <div className="flex items-baseline gap-2">
             {n.badge && (
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 leading-tight"
-                style={{ background: color + "22", color }}>
-                {n.badge}
-              </span>
+              <span className="text-[10px] font-mono shrink-0" style={{ color }}>{n.badge}</span>
             )}
-            <span className="font-mono text-[13px] font-semibold text-text leading-tight break-all line-clamp-2">
-              {n.title}
-            </span>
+            <span className="font-mono text-[13px] font-semibold text-text leading-tight break-all line-clamp-2">{n.title}</span>
             {countryCode && (
-              <span className="ml-auto text-base leading-none shrink-0" title={countryCode}>{flag(countryCode)}</span>
+              <span className="ml-auto text-[10px] font-mono text-dim shrink-0">{cc(countryCode)}</span>
             )}
           </div>
           {n.sub && (
@@ -665,42 +603,24 @@ function NodeCard({ n, color, countryCode }: { n: TopoNode; color: string; count
 
 // ── RECORDS VIEW ─────────────────────────────────────────────────
 
-const RECORD_COLORS: Record<RecordType, string> = {
-  A: "#34d399", AAAA: "#34d399", CNAME: "#fbbf24",
-  MX: "#a78bfa", TXT: "#fb7185", NS: "#22d3ee",
-  SOA: "#94a3b8", CAA: "#22d3ee", SRV: "#a78bfa", DNSKEY: "#f97316",
-};
-
 function RecordsView({ r }: { r: Result }) {
-  // Surface only the record types that actually returned something. The rest
-  // would just be empty cards making the page longer for no reason.
   const present = RECORD_TYPES.filter((rt) => (r.records[rt.id]?.length ?? 0) > 0);
   const empty = RECORD_TYPES.filter((rt) => !(r.records[rt.id]?.length));
 
   return (
-    <div className="space-y-4">
+    <div className="surface divide-y divide-border/50">
       {present.map((rt) => {
         const ans = r.records[rt.id] ?? [];
-        const color = RECORD_COLORS[rt.id];
         return (
-          <div key={rt.id} className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between"
-              style={{ borderTop: `2px solid ${color}` }}>
-              <div className="flex items-center gap-3">
-                <code className="text-base font-extrabold font-mono" style={{ color }}>{rt.id}</code>
-                <span className="text-xs text-dim font-mono">
-                  {ans.length} {ans.length === 1 ? "record" : "records"}
-                </span>
-              </div>
-              <a className="text-xs text-dim hover:text-text"
-                href={`https://cloudflare-dns.com/dns-query?name=${r.domain}&type=${rt.num}&do=true`}
-                target="_blank" rel="noopener">raw DoH ↗</a>
+          <div key={rt.id} className="grid grid-cols-[80px_1fr] hover:bg-muted/20 transition">
+            <div className="px-4 py-3 border-r border-border/40 flex items-center">
+              <code className="text-text font-mono font-bold text-sm">{rt.id}</code>
             </div>
-            <div className="divide-y divide-border/40">
+            <div className="divide-y divide-border/30">
               {ans.map((a, i) => (
-                <div key={i} className="px-5 py-3 grid grid-cols-[1fr_auto] gap-3 items-start hover:bg-muted/30 transition">
-                  <code className="text-sm font-mono break-all leading-relaxed">{a.data}</code>
-                  <span className="text-[10px] uppercase tracking-wider text-dim font-mono whitespace-nowrap mt-0.5">TTL {a.TTL}s</span>
+                <div key={i} className="px-4 py-2.5 flex items-start justify-between gap-4">
+                  <code className="text-sm font-mono break-all leading-relaxed text-text/90 flex-1">{a.data}</code>
+                  <span className="text-[10px] font-mono text-dim whitespace-nowrap shrink-0 mt-0.5">{a.TTL}s</span>
                 </div>
               ))}
             </div>
@@ -709,13 +629,9 @@ function RecordsView({ r }: { r: Result }) {
       })}
 
       {empty.length > 0 && (
-        <div className="card-flat p-4">
-          <div className="text-xs uppercase tracking-wider text-dim mb-2">No records for</div>
-          <div className="flex flex-wrap gap-1.5">
-            {empty.map((rt) => (
-              <span key={rt.id} className="px-2 py-1 rounded text-xs font-mono bg-muted/50 text-dim border border-border/40">{rt.id}</span>
-            ))}
-          </div>
+        <div className="px-4 py-3 flex items-center gap-3 text-xs">
+          <span className="text-dim uppercase tracking-wider">absent</span>
+          <span className="font-mono text-dim/70">{empty.map((rt) => rt.id).join("  ")}</span>
         </div>
       )}
     </div>
@@ -726,9 +642,8 @@ function RecordsView({ r }: { r: Result }) {
 
 function IpsView({ r }: { r: Result }) {
   const ips = Object.values(r.ips);
-  if (!ips.length) return <div className="card p-5 text-sm text-dim">No IPs to analyze.</div>;
+  if (!ips.length) return <div className="text-sm text-dim">No IPs to analyze.</div>;
 
-  // Group by ASN holder to surface "this domain is hosted on X" at a glance.
   const byHolder = new Map<string, IpInfo[]>();
   ips.forEach((ip) => {
     const key = ip.holder ?? "Unknown";
@@ -737,48 +652,42 @@ function IpsView({ r }: { r: Result }) {
   });
 
   return (
-    <div className="space-y-5">
-      {[...byHolder.entries()].map(([holder, group]) => (
-        <div key={holder} className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl leading-none">{flag(group[0]?.country) || "🌐"}</span>
-              <div>
-                <div className="font-bold">{holder}</div>
-                <div className="text-xs text-dim font-mono">
-                  {group[0]?.asn ?? ""} {group[0]?.country ? "· " + group[0].country : ""} {group[0]?.city ? "· " + group[0].city : ""}
-                </div>
+    <div className="space-y-6">
+      {[...byHolder.entries()].map(([holder, group]) => {
+        const first = group[0];
+        return (
+          <div key={holder} className="surface overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/50 flex items-baseline justify-between flex-wrap gap-2">
+              <div className="flex items-baseline gap-3">
+                <span className="text-sm font-semibold">{holder}</span>
+                <span className="text-xs text-dim font-mono">
+                  {first?.asn} {first?.country ? "· " + first.country : ""} {first?.city ? "· " + first.city : ""}
+                </span>
               </div>
+              <span className="text-[11px] text-dim font-mono">{group.length} {group.length === 1 ? "ip" : "ips"}</span>
             </div>
-            <div className="text-sm text-dim">
-              {group.length} {group.length === 1 ? "IP" : "IPs"}
+            <div className="divide-y divide-border/30">
+              {group.map((ip) => (
+                <div key={ip.ip} className="px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-baseline gap-3 min-w-0">
+                    <code className="font-mono text-text font-semibold break-all">{ip.ip}</code>
+                    {ip.prefix && <code className="text-[11px] text-dim font-mono">{ip.prefix}</code>}
+                  </div>
+                  <div className="flex gap-3 text-[11px] font-mono">
+                    {ip.lat !== undefined && (
+                      <a className="text-dim hover:text-text" target="_blank" rel="noopener"
+                        href={`https://www.openstreetmap.org/?mlat=${ip.lat}&mlon=${ip.lon}&zoom=8`}>map</a>
+                    )}
+                    <a className="text-dim hover:text-text" target="_blank" rel="noopener" href={`https://bgp.he.net/ip/${ip.ip}`}>he.net</a>
+                    <a className="text-dim hover:text-text" target="_blank" rel="noopener" href={`https://stat.ripe.net/${ip.ip}`}>ripe</a>
+                    <a className="text-dim hover:text-text" target="_blank" rel="noopener" href={`https://www.shodan.io/host/${ip.ip}`}>shodan</a>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="divide-y divide-border/40">
-            {group.map((ip) => (
-              <div key={ip.ip} className="px-5 py-3 flex items-center justify-between gap-4 flex-wrap hover:bg-muted/30 transition">
-                <div className="flex items-center gap-3 min-w-0">
-                  <code className="font-mono text-brand font-bold text-base break-all">{ip.ip}</code>
-                  {ip.prefix && (
-                    <code className="text-[11px] text-dim font-mono px-1.5 py-0.5 rounded bg-muted border border-border/60">
-                      {ip.prefix}
-                    </code>
-                  )}
-                </div>
-                <div className="flex gap-1.5 text-[11px]">
-                  {ip.lat !== undefined && (
-                    <a className="chip" target="_blank" rel="noopener"
-                      href={`https://www.openstreetmap.org/?mlat=${ip.lat}&mlon=${ip.lon}&zoom=8`}>map ↗</a>
-                  )}
-                  <a className="chip" target="_blank" rel="noopener" href={`https://bgp.he.net/ip/${ip.ip}`}>HE ↗</a>
-                  <a className="chip" target="_blank" rel="noopener" href={`https://stat.ripe.net/${ip.ip}`}>RIPE ↗</a>
-                  <a className="chip" target="_blank" rel="noopener" href={`https://www.shodan.io/host/${ip.ip}`}>Shodan ↗</a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -793,50 +702,41 @@ function SubsView({ r }: { r: Result }) {
   }, [filter, r.subdomains]);
 
   if (!r.subdomains.length) return (
-    <div className="card p-8 text-center text-dim space-y-2">
-      <div className="text-4xl opacity-30">🔍</div>
-      <p className="text-sm">No subdomains found in Certificate Transparency logs.</p>
-      <p className="text-xs">Either the domain hasn't ever issued a public TLS cert, or crt.sh is slow.</p>
+    <div className="text-sm text-dim">
+      No subdomains found in Certificate Transparency logs.
     </div>
   );
 
   return (
-    <div className="space-y-4">
-      <div className="card p-5 flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-dim mb-1">discovered subdomains</div>
-          <div className="flex items-baseline gap-3">
-            <span className="text-brand font-extrabold text-4xl tabular-nums">{r.subdomains.length}</span>
-            <span className="text-xs text-dim">via Certificate Transparency</span>
-          </div>
+    <div>
+      <div className="flex items-baseline justify-between gap-4 flex-wrap mb-4">
+        <div className="flex items-baseline gap-3">
+          <span className="num text-2xl font-bold text-text">{r.subdomains.length}</span>
+          <span className="text-xs text-dim">subdomains in CT logs</span>
         </div>
         <div className="flex gap-2 items-center">
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="filter…"
-            className="input input-mono text-sm w-48" />
-          <a className="chip" target="_blank" rel="noopener" href={`https://crt.sh/?q=%25.${r.domain}`}>raw crt.sh ↗</a>
+            className="surface px-3 py-1.5 font-mono text-sm bg-surface outline-none focus:border-brand transition w-44" />
+          <a className="font-mono text-xs text-dim hover:text-text" target="_blank" rel="noopener" href={`https://crt.sh/?q=%25.${r.domain}`}>raw crt.sh →</a>
         </div>
       </div>
 
-      <div className="card p-4">
-        {filter && subs.length !== r.subdomains.length && (
-          <div className="text-xs text-dim mb-2">{subs.length} of {r.subdomains.length} matching</div>
-        )}
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
-          {subs.map((s) => {
-            const prefix = s.replace("." + r.domain, "");
-            return (
-              <a key={s} target="_blank" rel="noopener" href={`https://${s}`}
-                className="group px-2.5 py-1.5 rounded-lg bg-muted/40 border border-border/50 hover:border-brand/60 hover:bg-brand/5 transition truncate font-mono text-xs flex items-center gap-1.5">
-                <span className="text-brand">{prefix}</span>
-                <span className="text-dim group-hover:text-text/50 text-[10px]">.{r.domain}</span>
-              </a>
-            );
-          })}
-        </div>
-        <p className="text-xs text-dim mt-4 leading-relaxed">
-          CT logs every public TLS certificate that's ever been issued — Let's Encrypt + paid CAs all submit.
-          Catches forgotten staging hosts, internal dashboards exposed by accident, abandoned services.
-        </p>
+      {filter && subs.length !== r.subdomains.length && (
+        <div className="text-xs text-dim mb-2 font-mono">{subs.length} / {r.subdomains.length}</div>
+      )}
+
+      <div className="surface divide-y divide-border/30">
+        {subs.map((s) => {
+          const prefix = s.replace("." + r.domain, "");
+          return (
+            <a key={s} target="_blank" rel="noopener" href={`https://${s}`}
+              className="group px-4 py-2 flex items-baseline gap-2 hover:bg-muted/30 transition font-mono text-xs">
+              <span className="text-text">{prefix}</span>
+              <span className="text-dim/70">.{r.domain}</span>
+              <span className="ml-auto text-dim opacity-0 group-hover:opacity-100">→</span>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -852,72 +752,59 @@ function WhoisView({ r }: { r: Result }) {
   const daysToExpiry = exp ? Math.round((new Date(exp.eventDate).getTime() - Date.now()) / 86400000) : null;
 
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2"
-          style={{ borderTop: "2px solid #22d3ee" }}>
-          <span className="text-base">📜</span>
-          <div className="text-xs uppercase tracking-[0.18em] text-dim font-semibold">Registration (RDAP)</div>
-        </div>
+    <div className="grid md:grid-cols-2 gap-6">
+      <div>
+        <div className="text-xs uppercase tracking-[0.16em] text-dim mb-3">registration</div>
         {r.rdap ? (
-          <div className="p-5 space-y-4">
-            {registrar && (
-              <div>
-                <div className="text-xs uppercase tracking-wider text-dim mb-1">Registrar</div>
-                <div className="text-lg font-bold">{registrar}</div>
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-3">
-              <DateBlock label="Registered" date={reg?.eventDate} />
-              <DateBlock label="Updated"    date={upd?.eventDate} />
-              <DateBlock label="Expires"    date={exp?.eventDate}
-                hint={daysToExpiry !== null ? `${daysToExpiry} d` : undefined}
-                accent={exp ? expiryAccent(exp.eventDate) : undefined} />
-            </div>
+          <div className="surface divide-y divide-border/40">
+            <KV k="registrar" v={registrar ?? "—"} />
+            <KV k="registered" v={reg?.eventDate?.slice(0, 10) ?? "—"} />
+            <KV k="updated"    v={upd?.eventDate?.slice(0, 10) ?? "—"} />
+            <KV k="expires"    v={exp?.eventDate?.slice(0, 10) ?? "—"}
+              hint={daysToExpiry !== null ? `${daysToExpiry}d` : undefined}
+              accent={exp ? expiryAccent(exp.eventDate) : undefined} />
             {r.rdap.status && r.rdap.status.length > 0 && (
-              <div>
-                <div className="text-xs uppercase tracking-wider text-dim mb-2">Status flags</div>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="px-4 py-2.5">
+                <div className="text-[11px] uppercase tracking-wider text-dim font-mono mb-1.5">status</div>
+                <div className="flex flex-wrap gap-1">
                   {r.rdap.status.map((s, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded text-[11px] font-mono bg-muted border border-border/60 text-dim">{s}</span>
+                    <span key={i} className="font-mono text-[11px] text-dim">{s}{i < r.rdap!.status!.length - 1 ? "," : ""}</span>
                   ))}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="p-5 text-sm text-dim">RDAP not available for this TLD or registry.</div>
+          <div className="text-sm text-dim">RDAP not available for this TLD.</div>
         )}
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2"
-          style={{ borderTop: "2px solid #fb7185" }}>
-          <span className="text-base">🛡</span>
-          <div className="text-xs uppercase tracking-[0.18em] text-dim font-semibold">Email security &amp; DNSSEC</div>
-        </div>
-        <div className="p-5 space-y-2">
-          <SecRow ok={r.email.mxAdvertised > 0} label="MX records"
-            detail={r.email.mxAdvertised > 0 ? `${r.email.mxAdvertised} record${r.email.mxAdvertised === 1 ? "" : "s"} advertised — domain accepts mail` : "no MX — domain does not accept mail"} />
-          <SecRow ok={!!r.email.spf} label="SPF"
+      <div>
+        <div className="text-xs uppercase tracking-[0.16em] text-dim mb-3">email &amp; dnssec</div>
+        <div className="surface divide-y divide-border/40">
+          <SecRow ok={r.email.mxAdvertised > 0} label="mx"
+            detail={r.email.mxAdvertised > 0 ? `${r.email.mxAdvertised} record${r.email.mxAdvertised === 1 ? "" : "s"} — accepts mail` : "no MX — domain does not accept mail"} />
+          <SecRow ok={!!r.email.spf} label="spf"
             detail={r.email.spf ?? "no SPF — anyone can spoof mail From: this domain"} mono />
-          <SecRow ok={!!r.email.dmarc} label="DMARC"
+          <SecRow ok={!!r.email.dmarc} label="dmarc"
             detail={r.email.dmarc ?? "no _dmarc TXT — receivers won't enforce alignment"} mono />
-          <SecRow ok={r.dnssec} label="DNSSEC"
-            detail={r.dnssec ? "AD bit set on response — chain validates" : "zone unsigned or chain broken"} />
+          <SecRow ok={r.dnssec} label="dnssec"
+            detail={r.dnssec ? "AD bit set — chain validates" : "zone unsigned or chain broken"} />
         </div>
       </div>
     </div>
   );
 }
 
-function DateBlock({ label, date, hint, accent }: { label: string; date?: string; hint?: string; accent?: "ok" | "warn" | "bad" }) {
-  const color = accent === "bad" ? "text-red-300" : accent === "warn" ? "text-amber-300" : "text-text";
+function KV({ k, v, hint, accent }: { k: string; v: string; hint?: string; accent?: "ok" | "warn" | "bad" }) {
+  const color = accent === "bad" ? "text-amber-300" : accent === "warn" ? "text-amber-300/80" : "text-text";
   return (
-    <div className="rounded-lg bg-muted/40 border border-border/60 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-dim mb-1">{label}</div>
-      <div className={`font-mono font-semibold text-sm ${color}`}>{date?.slice(0, 10) ?? "—"}</div>
-      {hint && <div className={`text-[10px] font-mono ${color} opacity-80`}>{hint}</div>}
+    <div className="px-4 py-2.5 grid grid-cols-[120px_1fr] items-baseline gap-3">
+      <span className="text-[11px] uppercase tracking-wider text-dim font-mono">{k}</span>
+      <span className={`font-mono text-sm ${color} flex items-baseline gap-2`}>
+        {v}
+        {hint && <span className="text-[11px] text-dim">{hint}</span>}
+      </span>
     </div>
   );
 }
@@ -931,13 +818,13 @@ function expiryAccent(dt: string): "ok" | "warn" | "bad" | undefined {
 
 function SecRow({ ok, label, detail, mono }: { ok: boolean; label: string; detail: string; mono?: boolean }) {
   return (
-    <div className={`rounded-lg p-3 border ${ok ? "bg-brand/5 border-brand/30" : "bg-red-500/5 border-red-500/25"}`}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-semibold text-sm flex items-center gap-2">
-          <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-brand" : "bg-red-300"}`} />
+    <div className="px-4 py-3">
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="font-mono text-sm">
+          <span className={`${ok ? "text-brand" : "text-amber-300"} mr-2`}>{ok ? "✓" : "✗"}</span>
           {label}
         </span>
-        <span className={`text-[11px] font-mono font-bold ${ok ? "text-brand" : "text-red-300"}`}>{ok ? "PASS" : "FAIL"}</span>
+        <span className={`font-mono text-[10px] uppercase tracking-wider ${ok ? "text-brand/70" : "text-amber-300/80"}`}>{ok ? "ok" : "missing"}</span>
       </div>
       <div className={`text-xs text-dim leading-relaxed ${mono ? "font-mono break-all" : ""}`}>{detail}</div>
     </div>
